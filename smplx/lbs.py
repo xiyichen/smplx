@@ -26,6 +26,48 @@ import torch.nn.functional as F
 
 from .utils import rot_mat_to_euler, Tensor
 
+def quaternion_to_rotation_matrix(quat):
+    """Convert quaternion coefficients to rotation matrix.
+    Args:
+        quat: size = [B, 4] 4 <===>(w, x, y, z)
+    Returns:
+        Rotation matrix corresponding to the quaternion -- size = [B, 3, 3]
+    """
+    norm_quat = quat
+    norm_quat = norm_quat / norm_quat.norm(p=2, dim=1, keepdim=True)
+    w, x, y, z = norm_quat[:, 0], norm_quat[:, 1], norm_quat[:, 2], norm_quat[:, 3]
+
+    B = quat.size(0)
+
+    w2, x2, y2, z2 = w.pow(2), x.pow(2), y.pow(2), z.pow(2)
+    wx, wy, wz = w * x, w * y, w * z
+    xy, xz, yz = x * y, x * z, y * z
+
+    rotMat = torch.stack([w2 + x2 - y2 - z2, 2 * xy - 2 * wz, 2 * wy + 2 * xz,
+                          2 * wz + 2 * xy, w2 - x2 + y2 - z2, 2 * yz - 2 * wx,
+                          2 * xz - 2 * wy, 2 * wx + 2 * yz, w2 - x2 - y2 + z2], dim=1).view(B, 3, 3)
+    return rotMat
+
+def euler_to_quaternion(r):
+    x = r[..., 0]
+    y = r[..., 1]
+    z = r[..., 2]
+
+    z = z/2.0
+    y = y/2.0
+    x = x/2.0
+    cz = torch.cos(z)
+    sz = torch.sin(z)
+    cy = torch.cos(y)
+    sy = torch.sin(y)
+    cx = torch.cos(x)
+    sx = torch.sin(x)
+    quaternion = torch.zeros_like(r.repeat(1,2))[..., :4].to(r.device)
+    quaternion[..., 0] += cx*cy*cz - sx*sy*sz
+    quaternion[..., 1] += cx*sy*sz + cy*cz*sx
+    quaternion[..., 2] += cx*cz*sy - sx*cy*sz
+    quaternion[..., 3] += cx*cy*sz + sx*cz*sy
+    return quaternion
 
 def find_dynamic_lmk_idx_and_bcoords(
     vertices: Tensor,
@@ -212,8 +254,10 @@ def lbs(
     # N x J x 3 x 3
     ident = torch.eye(3, dtype=dtype, device=device)
     if pose2rot:
-        rot_mats = batch_rodrigues(pose.view(-1, 3)).view(
+        rot_mats = quaternion_to_rotation_matrix(euler_to_quaternion(pose.view(-1, 3))).view(
             [batch_size, -1, 3, 3])
+        # rot_mats = batch_rodrigues(pose.view(-1, 3)).view(
+        #     [batch_size, -1, 3, 3])
 
         pose_feature = (rot_mats[:, 1:, :, :] - ident).view([batch_size, -1])
         # (N x P) x (P, V * 3) -> N x V x 3
