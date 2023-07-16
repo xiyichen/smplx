@@ -366,7 +366,7 @@ class SMPL(nn.Module):
             num_repeats = int(batch_size / betas.shape[0])
             betas = betas.expand(num_repeats, -1)
 
-        vertices, joints = lbs(betas, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(betas, full_pose, self.v_template,
                                self.shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=pose2rot)
@@ -385,6 +385,7 @@ class SMPL(nn.Module):
                             body_pose=body_pose,
                             joints=joints,
                             betas=betas,
+                            bone_transforms=bone_transforms,
                             full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -471,7 +472,7 @@ class SMPLLayer(SMPL):
              body_pose.reshape(-1, self.NUM_BODY_JOINTS, 3, 3)],
             dim=1)
 
-        vertices, joints = lbs(betas, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(betas, full_pose, self.v_template,
                                self.shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights,
@@ -491,6 +492,7 @@ class SMPLLayer(SMPL):
                             body_pose=body_pose,
                             joints=joints,
                             betas=betas,
+                            bone_transforms=bone_transforms,
                             full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -725,7 +727,7 @@ class SMPLH(SMPL):
                                right_hand_pose], dim=1)
         full_pose += self.pose_mean
 
-        vertices, joints = lbs(betas, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(betas, full_pose, self.v_template,
                                self.shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=pose2rot)
@@ -746,6 +748,7 @@ class SMPLH(SMPL):
                              body_pose=body_pose,
                              left_hand_pose=left_hand_pose,
                              right_hand_pose=right_hand_pose,
+                             bone_transforms=bone_transforms,
                              full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -854,7 +857,7 @@ class SMPLHLayer(SMPLH):
              right_hand_pose.reshape(-1, self.NUM_HAND_JOINTS, 3, 3)],
             dim=1)
 
-        vertices, joints = lbs(betas, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(betas, full_pose, self.v_template,
                                self.shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=False)
@@ -875,6 +878,7 @@ class SMPLHLayer(SMPLH):
                              body_pose=body_pose,
                              left_hand_pose=left_hand_pose,
                              right_hand_pose=right_hand_pose,
+                             bone_transforms=bone_transforms,
                              full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -1228,7 +1232,7 @@ class SMPLX(SMPLH):
 
         shapedirs = torch.cat([self.shapedirs, self.expr_dirs], dim=-1)
 
-        vertices, joints = lbs(shape_components, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(shape_components, full_pose, self.v_template,
                                shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=pose2rot,
@@ -1283,6 +1287,7 @@ class SMPLX(SMPLH):
                              right_hand_pose=right_hand_pose,
                              jaw_pose=jaw_pose,
                              v_shaped=v_shaped,
+                             bone_transforms=bone_transforms,
                              full_pose=full_pose if return_full_pose else None)
         return output
 
@@ -1429,7 +1434,7 @@ class SMPLXLayer(SMPLX):
 
         shapedirs = torch.cat([self.shapedirs, self.expr_dirs], dim=-1)
 
-        vertices, joints = lbs(shape_components, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(shape_components, full_pose, self.v_template,
                                shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights,
@@ -1482,6 +1487,7 @@ class SMPLXLayer(SMPLX):
                              right_hand_pose=right_hand_pose,
                              jaw_pose=jaw_pose,
                              transl=transl,
+                             bone_transforms=bone_transforms,
                              full_pose=full_pose if return_full_pose else None)
         return output
 
@@ -1671,7 +1677,7 @@ class MANO(SMPL):
         full_pose = torch.cat([global_orient, hand_pose], dim=1)
         full_pose += self.pose_mean
 
-        vertices, joints = lbs(betas, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(betas, full_pose, self.v_template,
                                self.shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=True,
@@ -1692,6 +1698,7 @@ class MANO(SMPL):
                             betas=betas,
                             global_orient=global_orient,
                             hand_pose=hand_pose,
+                            bone_transforms=bone_transforms,
                             full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -1740,7 +1747,7 @@ class MANOLayer(MANO):
             transl = torch.zeros([batch_size, 3], dtype=dtype, device=device)
 
         full_pose = torch.cat([global_orient, hand_pose], dim=1)
-        vertices, joints = lbs(betas, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(betas, full_pose, self.v_template,
                                self.shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=False)
@@ -1758,6 +1765,7 @@ class MANOLayer(MANO):
             betas=betas,
             global_orient=global_orient,
             hand_pose=hand_pose,
+            bone_transforms=bone_transforms,
             full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -2076,7 +2084,7 @@ class FLAME(SMPL):
         shape_components = torch.cat([betas, expression], dim=-1)
         shapedirs = torch.cat([self.shapedirs, self.expr_dirs], dim=-1)
 
-        vertices, joints = lbs(shape_components, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(shape_components, full_pose, self.v_template,
                                shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=pose2rot,
@@ -2124,6 +2132,7 @@ class FLAME(SMPL):
                              global_orient=global_orient,
                              neck_pose=neck_pose,
                              jaw_pose=jaw_pose,
+                             bone_transforms=bone_transforms,
                              full_pose=full_pose if return_full_pose else None)
         return output
 
@@ -2226,7 +2235,7 @@ class FLAMELayer(FLAME):
         shape_components = torch.cat([betas, expression], dim=-1)
         shapedirs = torch.cat([self.shapedirs, self.expr_dirs], dim=-1)
 
-        vertices, joints = lbs(shape_components, full_pose, self.v_template,
+        vertices, joints, bone_transforms = lbs(shape_components, full_pose, self.v_template,
                                shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=False,
@@ -2273,6 +2282,7 @@ class FLAMELayer(FLAME):
                              global_orient=global_orient,
                              neck_pose=neck_pose,
                              jaw_pose=jaw_pose,
+                             bone_transforms=bone_transforms,
                              full_pose=full_pose if return_full_pose else None)
         return output
 
