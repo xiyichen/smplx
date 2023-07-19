@@ -289,7 +289,7 @@ def lbs(
 
     verts = v_homo[:, :, :3, 0]
 
-    return verts, J_transformed, A
+    return verts, J_transformed, J, A, v_posed, v_shaped, rot_mats
 
 
 def vertices2joints(J_regressor: Tensor, vertices: Tensor) -> Tensor:
